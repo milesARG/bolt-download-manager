@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bolt</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="22" height="22">
+    <b>Bolt</b>
+    <span class="status" id="status"><i></i><span>Checking…</span></span>
+    <button id="open" class="btn">Open Bolt</button>
+  </header>
+
+  <section class="notrunning" id="notRunning" hidden>
+    <p>Bolt isn't running, so downloads stay in the browser.</p>
+    <button id="launch" class="btn primary">Start Bolt</button>
+    <p class="muted small" id="launchHelp" hidden>Couldn't start it. Run <code>install.ps1</code> in the Bolt folder once (it lets this extension start Bolt), or start Bolt yourself.</p>
+  </section>
+
+  <label class="toggle"><input type="checkbox" id="enabled"><span>Send browser downloads to Bolt</span></label>
+
+  <h2>Media on this page</h2>
+  <div class="pagevideo">
+    <button id="pageVideo" class="btn primary">Download this page's video with Bolt</button>
+    <p class="muted small" id="pageVideoInfo">For YouTube, Vimeo and other video sites. Uses yt-dlp.</p>
+  </div>
+  <div id="media" class="media"><p class="muted small">Play the video, then its stream shows up here.</p></div>
+
+  <details>
+    <summary>Options</summary>
+    <label>Only take files bigger than (KB)<input id="minSize" type="number" min="0"></label>
+    <label>Leave these types to the browser<input id="skipExts" placeholder="e.g. pdf, jpg"></label>
+    <label class="toggle"><input type="checkbox" id="autoLaunch"><span>Start Bolt automatically when needed</span></label>
+    <label class="toggle"><input type="checkbox" id="askEveryTime"><span>Ask where to save and how fast (download window)</span></label>
+    <label class="toggle"><input type="checkbox" id="catchPanelLinks"><span>Catch one-time download links from game-server panels</span></label>
+    <label>Bolt port<input id="port" type="number" min="1024" max="65535"></label>
+    <button id="save" class="btn">Save options</button>
+  </details>
+  <p class="muted small tip">Tip: right-click a link → <b>Download link with Bolt</b>. Hold back a file? Right-click → <b>Download link with the browser instead</b>.</p>
+  <p class="muted small credit">Made by Arnav</p>
+<script src="popup.js"></script>
+</body>
+</html>

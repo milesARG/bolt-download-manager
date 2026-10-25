@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bolt Download Manager</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><img src="icon.svg" alt="" width="26" height="26"><span>Bolt</span></div>
+    <button class="btn primary" id="btnAdd" title="Add a download (Ctrl+N)">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add URL</span>
+    </button>
+    <button class="btn" id="btnResumeAll" title="Resume all"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg><span>Resume all</span></button>
+    <button class="btn" id="btnPauseAll" title="Pause all"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><span>Pause all</span></button>
+    <button class="btn" id="btnClear" title="Remove finished downloads from the list"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear finished</span></button>
+    <div class="spacer"></div>
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="search" placeholder="Search downloads" autocomplete="off"></div>
+    <div class="totals" id="totals" title="Total download speed"><span class="speed" id="totalSpeed">0 B/s</span><canvas id="spark" width="120" height="28"></canvas></div>
+    <button class="btn icon" id="btnFolder" title="Open download folder"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+    <button class="btn icon" id="btnSettings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </header>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="group-label">Status</div>
+    <button class="nav active" data-filter="all"><span>All downloads</span><b data-count="all">0</b></button>
+    <button class="nav" data-filter="active"><span>Downloading</span><b data-count="active">0</b></button>
+    <button class="nav" data-filter="queued"><span>Queued</span><b data-count="queued">0</b></button>
+    <button class="nav" data-filter="unfinished"><span>Unfinished</span><b data-count="unfinished">0</b></button>
+    <button class="nav" data-filter="completed"><span>Finished</span><b data-count="completed">0</b></button>
+    <div class="group-label">Categories</div>
+    <button class="nav" data-filter="cat:Video"><span>Video</span><b data-count="cat:Video">0</b></button>
+    <button class="nav" data-filter="cat:Music"><span>Music</span><b data-count="cat:Music">0</b></button>
+    <button class="nav" data-filter="cat:Compressed"><span>Compressed</span><b data-count="cat:Compressed">0</b></button>
+    <button class="nav" data-filter="cat:Programs"><span>Programs</span><b data-count="cat:Programs">0</b></button>
+    <button class="nav" data-filter="cat:Documents"><span>Documents</span><b data-count="cat:Documents">0</b></button>
+    <button class="nav" data-filter="cat:Images"><span>Images</span><b data-count="cat:Images">0</b></button>
+    <button class="nav" data-filter="cat:Other"><span>Other</span><b data-count="cat:Other">0</b></button>
+    <div class="sidebar-foot">
+      <div class="conn" id="connState"><i></i><span>Connecting…</span></div>
+      <div class="hint">Tip: paste a link anywhere (Ctrl+V) or drop it on this window.</div>
+      <div class="credit">Made by Arnav</div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="ext-banner" id="extBanner" hidden>
+      <div>
+        <b>Add the browser extension</b> so downloads from Edge, Chrome or Brave come to Bolt.
+        <ol>
+          <li>Open <code>edge://extensions</code> (or <code>chrome://extensions</code>) and turn on <b>Developer mode</b>.</li>
+          <li>Click <b>Load unpacked</b> and choose the extension folder.</li>
+        </ol>
+      </div>
+      <div class="ext-btns">
+        <button class="btn primary" id="btnExtFolder">Show extension folder</button>
+        <button class="btn" id="btnExtCopy" title="Copy the extensions page address">Copy edge://extensions</button>
+        <button class="btn icon" id="btnExtHide" title="Hide"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+    <div class="list-head">
+      <span class="c-name">Name</span><span class="c-size">Size</span><span class="c-prog">Progress</span>
+      <span class="c-speed">Speed</span><span class="c-eta">Time left</span><span class="c-act"></span>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="empty" id="empty" hidden>
+      <img src="icon.svg" alt="" width="56" height="56">
+      <h2>No downloads yet</h2>
+      <p>Click <b>Add URL</b>, paste a link with <kbd>Ctrl</kbd>+<kbd>V</kbd>, drop a link here, or install the browser extension so downloads come here automatically.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Add download -->
+<dialog id="dlgAdd">
+  <form method="dialog" id="formAdd">
+    <h3>Add download</h3>
+    <label><span>Link(s) <small>— one per line</small></span>
+      <textarea id="addUrls" rows="4" placeholder="https://example.com/file.zip" required spellcheck="false"></textarea>
+    </label>
+    <div class="row">
+      <label class="grow"><span>Save as <small>(optional)</small></span><input id="addName" placeholder="Use the server's file name" spellcheck="false"></label>
+      <label class="w150">Speed
+        <select id="addSpeed">
+          <option value="0">Auto (by size)</option>
+          <option value="4">Normal · 4</option>
+          <option value="8">Fast · 8</option>
+          <option value="16">Ultra · 16</option>
+          <option value="32">Max · 32</option>
+        </select></label>
+    </div>
+    <label>Folder
+      <div class="pick"><input id="addDir" placeholder="Default download folder" spellcheck="false"><button type="button" class="btn" id="addBrowse">Browse…</button></div>
+    </label>
+    <details><summary>Advanced</summary>
+      <label>Referer<input id="addRef" placeholder="https://site-the-link-came-from" spellcheck="false"></label>
+      <label>Cookie header<input id="addCookie" placeholder="name=value; other=value" spellcheck="false"></label>
+      <label class="check"><input type="checkbox" id="addYtdlp"> Video page: download it with yt-dlp (YouTube, Vimeo and similar sites are detected automatically)</label>
+    </details>
+    <div class="actions">
+      <label class="check"><input type="checkbox" id="addLater"> Add paused</label>
+      <div class="spacer"></div>
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" id="addSubmit" value="ok">Download</button>
+    </div>
+    <p class="err" id="addErr"></p>
+  </form>
+</dialog>
+
+<!-- Settings -->
+<dialog id="dlgSettings">
+  <form method="dialog" id="formSettings">
+    <h3>Settings</h3>
+    <label>Download folder
+      <div class="pick"><input id="setDir" spellcheck="false"><button type="button" class="btn" id="setBrowse">Browse…</button></div>
+    </label>
+    <label class="check"><input type="checkbox" id="setSort"> Sort into category folders (Video, Music, Programs…)</label>
+    <div class="row">
+      <label class="grow">Default speed
+        <select id="setSpeed">
+          <option value="0">Auto (by size, 100 GB+ = Max)</option>
+          <option value="4">Normal: 4 connections</option>
+          <option value="8">Fast: 8 connections</option>
+          <option value="16">Ultra: 16 connections</option>
+          <option value="32">Max: 32 connections</option>
+        </select></label>
+      <label class="grow">Downloads at the same time
+        <select id="setConc">
+          <option value="0">Unlimited (all start at once)</option>
+          <option value="1">1 (one after another)</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+        </select></label>
+    </div>
+    <div class="row">
+      <label class="grow">Speed limit (MB/s, 0 = unlimited)<input id="setLimit" type="number" min="0" step="0.1"></label>
+      <label class="grow">Reconnect after silence (sec)<input id="setStall" type="number" min="5" max="600"></label>
+    </div>
+    <div class="row">
+      <label class="grow">Max retries (0 = never give up)<input id="setRetries" type="number" min="0" max="1000"></label>
+      <label class="grow">Max connections per server, all downloads (0 = no limit)<input id="setPerHost" type="number" min="0" max="4096"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="setRemux"> Convert video streams to .mp4 (uses ffmpeg if installed)</label>
+    <label class="check"><input type="checkbox" id="setNotify"> Notify me when a download finishes</label>
+    <label class="check"><input type="checkbox" id="setAwake"> Keep the PC awake while downloading (stops sleep from cutting downloads)</label>
+    <label class="check"><input type="checkbox" id="setStartup"> Start Bolt with Windows, so unfinished downloads continue after a restart</label>
+    <div class="actions">
+      <span class="muted" id="verLabel"></span>
+      <button type="button" class="btn" id="btnLog" title="Open Bolt's log file">Open log</button>
+      <button type="button" class="btn" id="btnAbout">About</button>
+      <div class="spacer"></div>
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="ok">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Remove -->
+<dialog id="dlgRemove">
+  <form method="dialog">
+    <h3>Remove download?</h3>
+    <p id="removeName" class="muted break"></p>
+    <label class="check" id="removeFileRow"><input type="checkbox" id="removeFile"> Also delete the file from disk</label>
+    <p class="warnline" id="removeWarn" hidden></p>
+    <div class="actions"><div class="spacer"></div>
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn danger" value="ok">Remove</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- About -->
+<dialog id="dlgAbout">
+  <form method="dialog" class="about">
+    <img src="icon.svg" alt="" width="56" height="56">
+    <h3>Bolt Download Manager</h3>
+    <p class="muted" id="aboutVer"></p>
+    <p class="by">Engineered by Arnav</p>
+    <p class="muted">Fast multi-connection downloads that keep every byte through network loss, crashes and restarts.</p>
+    <p class="muted small">© 2026 Arnav · Released under the MIT License.<br>
+      Runs on Node.js (MIT). Uses yt-dlp (Unlicense) and ffmpeg (LGPL/GPL) only if you installed them; they run as separate programs.</p>
+    <div class="actions"><div class="spacer"></div><button class="btn primary" value="ok">Close</button></div>
+  </form>
+</dialog>
+
+<!-- Refresh link -->
+<dialog id="dlgRefresh">
+  <form method="dialog">
+    <h3>Refresh download link</h3>
+    <p class="muted">Link expired? Paste a fresh link to the same file. Bolt keeps everything downloaded so far.</p>
+    <input id="refreshUrl" spellcheck="false" placeholder="https://…">
+    <div class="actions"><div class="spacer"></div>
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" value="ok">Update &amp; resume</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>

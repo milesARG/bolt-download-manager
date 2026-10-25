@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Bolt Download Manager",
+  "short_name": "Bolt",
+  "version": "1.3.0",
+  "description": "Sends your downloads to Bolt for fast multi-connection, resumable downloading, and finds videos on pages. Made by Arnav.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqRlK+kePPJNN9e5WmTowjenwlEHtZCiF+7dB4fLoVi1cYNU3pyqJtP5DeXIbZK6FRbonqkUfNKVfbEqRsWTGLe9sFUqYhIRVFggp2K/YTReazf2gH3AhTJU4A1Po3VMz7gMtFodmZRWoByZeSILRQOYSvf4WaLCmyVXXA+dBAZEC8ePDi6ismwF8U6tEKVZnirMH/VD8DeXQY/95sCXG8FPlF8j29IRl+G7rfZs89AdFdRVb+K9El8EQquswF1fo7WUryb5UK+cqCCaYESqN5Z5r2VaeIKxe8MGBBgf79jFbW1vW7UxmeRe8N+xE4QQKj5ZzFhjfouqW4kl/eaNIKwIDAQAB",
+  "permissions": ["downloads", "contextMenus", "cookies", "storage", "webRequest", "notifications", "scripting", "activeTab", "nativeMessaging", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Bolt Download Manager",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png" }
+  },
+  "web_accessible_resources": [{ "resources": ["caught.html"], "matches": ["<all_urls>"] }],
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "minimum_chrome_version": "116"
+}

@@ -1,0 +1,16 @@
+# secrets: the extension's private key must never be published
+*.pem
+*.crx
+
+# build output (share releases via GitHub Releases instead)
+dist/
+
+# machine-specific files written by install.ps1
+node-path.txt
+native-host/bolt-launcher.bat
+native-host/com.bolt.launcher.json
+
+# test leftovers
+test/.tmp*/
+*.log
+node_modules/

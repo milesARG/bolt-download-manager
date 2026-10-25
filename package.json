@@ -1,0 +1,19 @@
+{
+  "name": "bolt-download-manager",
+  "version": "1.3.0",
+  "description": "Bolt - a fast, resumable, multi-connection download manager with browser integration. Made by Arnav.",
+  "author": "Arnav",
+  "main": "src/server.js",
+  "bin": {
+    "bolt": "bin/bolt.js"
+  },
+  "scripts": {
+    "start": "node bin/bolt.js start",
+    "test": "node test/run-tests.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "private": true
+}

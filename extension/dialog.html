@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download with Bolt</title>
+<link rel="stylesheet" href="dialog.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="34" height="34">
+    <div>
+      <h1>Download file</h1>
+      <p class="host" id="host"></p>
+    </div>
+  </header>
+
+  <div class="problem" id="problem" hidden>
+    <b>Bolt couldn't check this link</b>
+    <span id="problemText"></span>
+  </div>
+
+  <label>File name
+    <input id="name" spellcheck="false" autocomplete="off">
+  </label>
+
+  <div class="facts">
+    <div><span>Size</span><b id="size">—</b></div>
+    <div><span>Resume</span><b id="resume">—</b></div>
+    <div><span>Free on drive</span><b id="free">—</b></div>
+  </div>
+
+  <label class="continue" id="continueRow" hidden>
+    <input type="checkbox" id="continue" checked>
+    <span>Continue the unfinished download of this file (<b id="continueInfo"></b>) with this new link</span>
+  </label>
+
+  <label>Save to
+    <div class="pick"><input id="dir" spellcheck="false"><button type="button" class="btn" id="browse">Browse…</button></div>
+  </label>
+
+  <fieldset class="speed" id="speedBox">
+    <legend>Speed</legend>
+    <label><input type="radio" name="speed" value="0"><span><b>Auto</b><small id="autoHint">by file size</small></span></label>
+    <label><input type="radio" name="speed" value="4"><span><b>Normal</b><small>4 connections</small></span></label>
+    <label><input type="radio" name="speed" value="8"><span><b>Fast</b><small>8 connections</small></span></label>
+    <label><input type="radio" name="speed" value="16"><span><b>Ultra</b><small>16 connections</small></span></label>
+    <label><input type="radio" name="speed" value="32"><span><b>Max</b><small>32 connections</small></span></label>
+  </fieldset>
+  <p class="note" id="speedNote"></p>
+
+  <p class="err" id="err"></p>
+
+  <footer>
+    <button class="btn link" id="browser" title="Cancel in Bolt and download it with the browser instead">Use browser</button>
+    <span class="spacer"></span>
+    <button class="btn" id="cancel">Cancel</button>
+    <button class="btn" id="later">Download later</button>
+    <button class="btn primary" id="start">Start download</button>
+  </footer>
+<script src="dialog.js"></script>
+</body>
+</html>
