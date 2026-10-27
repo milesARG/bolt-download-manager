@@ -39,6 +39,8 @@
     <button class="nav" data-filter="cat:Documents"><span>Documents</span><b data-count="cat:Documents">0</b></button>
     <button class="nav" data-filter="cat:Images"><span>Images</span><b data-count="cat:Images">0</b></button>
     <button class="nav" data-filter="cat:Other"><span>Other</span><b data-count="cat:Other">0</b></button>
+    <div class="group-label">My categories <button class="mini" id="btnManageCats" title="Add or change categories">+ Add</button></div>
+    <div id="userCats"></div>
     <div class="sidebar-foot">
       <div class="conn" id="connState"><i></i><span>Connecting…</span></div>
       <div class="hint">Tip: paste a link anywhere (Ctrl+V) or drop it on this window.</div>
@@ -92,9 +94,13 @@
           <option value="32">Max · 32</option>
         </select></label>
     </div>
-    <label>Folder
-      <div class="pick"><input id="addDir" placeholder="Default download folder" spellcheck="false"><button type="button" class="btn" id="addBrowse">Browse…</button></div>
-    </label>
+    <div class="row">
+      <label class="w150">Category
+        <select id="addCat"><option value="">None</option></select></label>
+      <label class="grow">Folder
+        <div class="pick"><input id="addDir" placeholder="Default download folder" spellcheck="false"><button type="button" class="btn" id="addBrowse">Browse…</button></div>
+      </label>
+    </div>
     <details><summary>Advanced</summary>
       <label>Referer<input id="addRef" placeholder="https://site-the-link-came-from" spellcheck="false"></label>
       <label>Cookie header<input id="addCookie" placeholder="name=value; other=value" spellcheck="false"></label>
@@ -117,6 +123,11 @@
     <label>Download folder
       <div class="pick"><input id="setDir" spellcheck="false"><button type="button" class="btn" id="setBrowse">Browse…</button></div>
     </label>
+    <fieldset class="cats" id="catsBox">
+      <legend>Categories <small>— pick one when downloading and the file goes to its folder. File types (optional) pick it by themselves.</small></legend>
+      <div id="catRows"></div>
+      <button type="button" class="btn" id="catAdd">+ Add category</button>
+    </fieldset>
     <label class="check"><input type="checkbox" id="setSort"> Sort into category folders (Video, Music, Programs…)</label>
     <div class="row">
       <label class="grow">Default speed

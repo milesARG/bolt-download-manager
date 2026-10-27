@@ -142,7 +142,7 @@ async function dialogAction(msg) {
     } else {
       await api('/api/downloads', {
         url: p.url, referrer: p.referrer, mime: p.mime, cookies, userAgent: navigator.userAgent,
-        filename: msg.filename || null, dir: msg.dir || null, connections: msg.connections || 0,
+        filename: msg.filename || null, dir: msg.dir || null, connections: msg.connections || 0, category: msg.category || '',
         start: msg.action !== 'later', source: 'browser',
       });
     }
@@ -496,6 +496,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       case 'dialog': return dialogAction(msg);
       case 'pick-folder':
         try { return await api('/api/actions/pick-folder', { initial: msg.initial }); } catch (e) { return { path: null, error: e.message }; }
+      case 'bolt-settings':
+        try { const r = await fetch(`${base(s)}/api/settings`); return await r.json(); } catch { return null; }
+      case 'save-category':
+        try { return await api('/api/categories', { name: msg.name, dir: msg.dir }); } catch (e) { return { error: e.message }; }
       case 'disk-free':
         try { return await api('/api/actions/disk-free', { dir: msg.dir }); } catch { return { free: null }; }
       case 'caught': return handleCaught(msg.url);

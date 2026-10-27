@@ -27,6 +27,9 @@ const DEFAULTS = {
   keepAwake: true,               // stop Windows from sleeping while something downloads
   startWithWindows: false,       // Startup-folder shortcut, managed by the server
   extensionSeen: false,          // the browser extension has talked to Bolt at least once
+  // your own categories, e.g. { name: 'Games', dir: 'D:\\games', exts: 'iso rar' }:
+  // picking one saves to its folder; exts let Bolt pick it by itself
+  categories: [],
   configVersion: 3,
 };
 
@@ -35,6 +38,28 @@ const LIMITS = {
   maxConcurrent: [0, 100000], speedLimit: [0, 1e12], minSplitSize: [64 * 1024, 64 * 1024 * 1024],
   maxRetries: [0, 1000], stallTimeout: [5, 600],
 };
+
+/** Keep only valid categories: a name and an absolute folder; names unique (case-insensitive). */
+function cleanCategories(list) {
+  const out = []; const seen = new Set();
+  for (const c of list.slice(0, 100)) {
+    if (!c || typeof c !== 'object') continue;
+    const name = String(c.name || '').replace(/[\x00-\x1f]/g, '').trim().slice(0, 40);
+    const dir = String(c.dir || '').trim();
+    if (!name || !dir || !path.isAbsolute(dir) || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    const exts = String(c.exts || '').toLowerCase().split(/[\s,;]+/).map((e) => e.replace(/^\*?\./, '')).filter((e) => /^[a-z0-9]{1,10}$/.test(e)).join(' ');
+    out.push({ name, dir: path.normalize(dir), exts });
+  }
+  return out;
+}
+
+/** The category for a file: the one named, or the first whose file types match. */
+function categoryFor(categories, filename, name) {
+  if (name) return categories.find((c) => c.name.toLowerCase() === String(name).toLowerCase()) || null;
+  const ext = path.extname(filename || '').slice(1).toLowerCase();
+  return (ext && categories.find((c) => c.exts.split(' ').includes(ext))) || null;
+}
 
 class Config {
   constructor() {
@@ -64,6 +89,7 @@ class Config {
   update(patch) {
     for (const [k, v] of Object.entries(patch || {})) {
       if (!(k in DEFAULTS) || k === 'configVersion') continue;
+      if (k === 'categories') { if (Array.isArray(v)) this.values.categories = cleanCategories(v); continue; }
       if (typeof DEFAULTS[k] === 'number') {
         const n = Number(v);
         if (!Number.isFinite(n)) continue;
@@ -81,4 +107,4 @@ class Config {
   }
 }
 
-module.exports = { Config, DATA_DIR, DEFAULTS };
+module.exports = { Config, DATA_DIR, DEFAULTS, cleanCategories, categoryFor };

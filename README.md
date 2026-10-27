@@ -6,7 +6,7 @@
 
 **Fast, unbreakable downloads for Windows. Free, open source, and no ads.**
 
-[![Download](https://img.shields.io/badge/Download-v1.3.0-5b8cff?style=for-the-badge&logo=windows)](https://github.com/milesARG/bolt-download-manager/releases/latest)
+[![Download](https://img.shields.io/badge/Download-v1.5.0-5b8cff?style=for-the-badge&logo=windows)](https://github.com/milesARG/bolt-download-manager/releases/latest)
 &nbsp;![License](https://img.shields.io/badge/license-MIT-7b5cff?style=for-the-badge)
 
 <img src="docs/images/app-dark.png" alt="Bolt's main window" width="860">
@@ -30,8 +30,8 @@
 
 ## Install in 1 minute
 
-1. **[Download the latest release](https://github.com/milesARG/bolt-download-manager/releases/latest)** (`Bolt-1.3.0-share.zip`) and extract it.
-2. Run **`Install Bolt 1.3.0.exe`** and click **Install**. You don't need admin rights or anything else.
+1. **[Download the latest release](https://github.com/milesARG/bolt-download-manager/releases/latest)** (`Bolt-1.5.0-share.zip`) and extract it.
+2. Run **`Install Bolt 1.5.0.exe`** and click **Install**. You don't need admin rights or anything else.
    <sub>If Windows says "protected your PC", click **More info → Run anyway**. The installer isn't code-signed yet.</sub>
 3. **Add the browser extension.** Open `edge://extensions` (or `chrome://extensions`), turn on **Developer mode**, click **Load unpacked**, and pick the **`Browser extension`** folder.
    <sub>Keep that folder somewhere permanent, like Documents. The browser keeps loading it from there.</sub>
@@ -45,6 +45,7 @@ That's it. Downloads from your browser now go through Bolt.
 - ⚡ **Speed.** Splits each file across up to 32 connections, picked automatically by file size. Files of 100 GB or more get the maximum.
 - 🛡️ **Never loses a download.** Survives crashes, Wi-Fi drops, sleep and restarts, and continues from exactly where it stopped.
 - 🔗 **Expired link?** Start the download again in your browser and Bolt continues the old one.
+- 📁 **Categories.** Make your own, like *Games → D:\games*. Pick one when downloading, or let its file types (iso, rar…) choose it for you.
 - 🪟 **Download window.** Choose the folder and speed (Auto, Normal, Fast, Ultra or Max) for every download.
 - 🧩 **Works with everything.** Files Bolt can't fetch itself, like Telegram or MEGA, still appear in its list while the browser saves them.
 - 🎬 **Video.** Detects videos playing on a page. Saves HLS streams as MP4, and YouTube with [yt-dlp](https://github.com/yt-dlp/yt-dlp).

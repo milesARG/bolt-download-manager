@@ -202,6 +202,21 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   for (let i = 0; i < 100; i++) { st = manager.get(oneId).status; if (st === 'completed' || st === 'error') break; await sleep(100); }
   check('caught one-time link downloads completely', st === 'completed', st + ' ' + (manager.get(oneId).error || ''));
 
+  // 9b) categories in the download window
+  const gamesDir = path.join(OUT, 'Games folder');
+  config.update({ categories: [{ name: 'Games', dir: gamesDir, exts: 'gz' }] });
+  calls.length = 0;
+  await created({ id: 20, url: f('t=cat'), filename: 'world.tar.gz', mime: 'application/gzip', totalBytes: -1 });
+  p = (await message({ cmd: 'pending', key: pendingKey() })).pending;
+  check('window gets your categories and suggests the matching one', p.probe.categories.length === 1 && p.probe.suggestedCategory === 'Games', JSON.stringify(p.probe.categories));
+  r = await message({ cmd: 'dialog', key: p.key, action: 'start', category: 'Games', dir: null });
+  let catIt;
+  for (let i = 0; i < 100; i++) { catIt = manager.items.find((x) => x.url === f('t=cat')); if (catIt && catIt.status === 'completed') break; await sleep(100); }
+  check('picking "Games" saves into the Games folder', r.ok && catIt && catIt.status === 'completed' && path.dirname(catIt.savePath) === gamesDir, catIt && catIt.savePath);
+  const saved = await message({ cmd: 'save-category', name: 'Movies', dir: path.join(OUT, 'movies') });
+  check('"Save folder as category" adds one', saved.categories && saved.categories.some((c) => c.name === 'Movies'));
+  config.update({ categories: [] });
+
   // 10) media detection
   listeners.headers({ tabId: 7, statusCode: 200, url: 'https://cdn.test/v/master.m3u8', responseHeaders: [{ name: 'Content-Type', value: 'application/vnd.apple.mpegurl' }] });
   listeners.headers({ tabId: 7, statusCode: 206, url: 'https://cdn.test/clip.mp4', responseHeaders: [{ name: 'Content-Type', value: 'video/mp4' }, { name: 'Content-Range', value: 'bytes 0-1023/50000000' }] });

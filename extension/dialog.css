@@ -20,6 +20,10 @@ input:not([type=radio]):not([type=checkbox]) {
 }
 input:focus { border-color: var(--accent); }
 .pick { display: flex; gap: 8px; }
+.catrow { display: flex; gap: 8px; align-items: flex-end; }
+.catrow .grow { flex: 1; }
+select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; outline: none; }
+select:focus { border-color: var(--accent); }
 .btn { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: .55; cursor: default; }

@@ -7,7 +7,7 @@ const { HttpDownload } = require('./download');
 const { HlsDownload } = require('./hls');
 const { YtdlpDownload, isSitePage } = require('./ytdlp');
 const { Throttle } = require('./throttle');
-const { DATA_DIR } = require('./config');
+const { DATA_DIR, categoryFor } = require('./config');
 const { KeepAwake } = require('./power');
 const util = require('./util');
 const log = require('./log');
@@ -218,6 +218,10 @@ class Manager extends EventEmitter {
     const isYtdlp = !isHls && (opts.type === 'ytdlp' || (!opts.type && !opts.mime && isSitePage(parsed)));
     let filename = opts.filename ? util.sanitizeFilename(path.basename(String(opts.filename))) : null;
     if (isHls && filename && /\.m3u8$/i.test(filename)) filename = filename.replace(/\.m3u8$/i, '.mp4');
+    // a category chosen in the window (or matched by file type) gives the folder
+    const cat = opts.category === '' ? null
+      : categoryFor(this.config.get('categories') || [], filename || util.filenameFromUrl(url), opts.category);
+    if (opts.category && !cat) throw new Error(`There is no category called "${opts.category}"`);
     const item = {
       id: util.newId(),
       type: isHls ? 'hls' : isYtdlp ? 'ytdlp' : 'http',
@@ -227,7 +231,8 @@ class Manager extends EventEmitter {
       userAgent: opts.userAgent || null,
       headers: opts.headers && typeof opts.headers === 'object' ? opts.headers : null,
       filename,
-      dir: opts.dir || null,
+      dir: opts.dir || (cat ? cat.dir : null),
+      userCategory: cat ? cat.name : null,
       savePath: null,
       size: null,
       status: opts.start === false ? 'paused' : 'queued',

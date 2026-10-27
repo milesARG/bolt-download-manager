@@ -1,6 +1,6 @@
 {
   "name": "bolt-download-manager",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "description": "Bolt - a fast, resumable, multi-connection download manager with browser integration. Made by Arnav.",
   "author": "Arnav",
   "main": "src/server.js",

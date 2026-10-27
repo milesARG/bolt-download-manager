@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { probe } = require('./download');
+const { categoryFor } = require('./config');
 const { startWithWindows, setStartWithWindows } = require('./power');
 const log = require('./log');
 
@@ -205,6 +206,9 @@ function createServer(manager, config, { onQuit } = {}) {
           ...info,
           downloadDir: settingsNow.downloadDir,
           defaultConnections: settingsNow.connections,
+          categories: settingsNow.categories || [],
+          // category whose file types match this file, preselected in the window
+          suggestedCategory: info.ok ? (categoryFor(settingsNow.categories || [], info.filename) || {}).name || null : null,
           existing: existing ? manager.publicItem(existing) : null,
         });
       }
@@ -253,6 +257,16 @@ function createServer(manager, config, { onQuit } = {}) {
       if (p === '/api/actions/clear-completed') { manager.clearCompleted(); return send(res, 200, { ok: true }); }
       if (p === '/api/actions/open-downloads') { openPath(config.get('downloadDir')); return send(res, 200, { ok: true }); }
       if (p === '/api/actions/quit') { send(res, 200, { ok: true }); if (onQuit) setTimeout(onQuit, 50); return; }
+      if (p === '/api/categories') {
+        // add or update one category (from the download window's "New category…")
+        const name = String(body.name || '').trim();
+        const list = (config.get('categories') || []).filter((c) => c.name.toLowerCase() !== name.toLowerCase());
+        const before = list.length;
+        config.update({ categories: [...list, { name, dir: body.dir, exts: body.exts || '' }] });
+        if (config.get('categories').length === before) return send(res, 400, { error: 'A category needs a name and a full folder path' });
+        broadcast('settings', settings());
+        return send(res, 200, { categories: config.get('categories') });
+      }
       if (p === '/api/actions/pick-folder') return send(res, 200, { path: await pickFolder(body.initial || config.get('downloadDir')) });
       if (p === '/api/actions/disk-free') {
         // nearest existing folder, so a not-yet-created target still answers

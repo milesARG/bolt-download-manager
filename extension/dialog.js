@@ -42,11 +42,53 @@ async function act(action) {
     filename: $('#name').value.trim() || null,
     dir: $('#dir').value.trim() || null,
     connections: speed ? Number(speed.value) : 0,
+    category: $('#category').value || '',
     continueId: cont ? pending.probe.existing.id : null,
   });
   if (r && r.ok) { window.close(); return; }
   setBusy(false);
   $('#err').textContent = (r && r.error) || 'Something went wrong';
+}
+
+// ---- categories: each one is a saved folder ("Games" -> D:\games)
+let categories = [];
+let defaultDir = '';
+
+function fillCategories(selected) {
+  const sel = $('#category');
+  sel.length = 1;   // keep "None"
+  for (const c of categories) sel.add(new Option(`${c.name}  —  ${c.dir}`, c.name));
+  sel.value = categories.some((c) => c.name === selected) ? selected : '';
+}
+
+function applyCategory() {
+  const c = categories.find((x) => x.name === $('#category').value);
+  $('#dir').value = c ? c.dir : defaultDir;
+  refreshFree();
+}
+
+async function setupCategories(p) {
+  defaultDir = p.downloadDir || '';
+  categories = p.categories;
+  if (!categories) {   // one-time links skip Bolt's check, so ask for the list directly
+    const s = await send({ cmd: 'bolt-settings' });
+    categories = (s && s.categories) || [];
+    if (!defaultDir && s) { defaultDir = s.downloadDir || ''; $('#dir').value = defaultDir; }
+  }
+  fillCategories(p.suggestedCategory);
+  if (p.suggestedCategory) applyCategory();
+  $('#category').addEventListener('change', applyCategory);
+  $('#saveCat').addEventListener('click', async () => {
+    const dir = $('#dir').value.trim();
+    if (!dir) { $('#err').textContent = 'Choose a folder first (Browse…).'; return; }
+    const name = (prompt(`Name for this category?\nFiles you put in it go to:\n${dir}`, '') || '').trim();
+    if (!name) return;
+    const r = await send({ cmd: 'save-category', name, dir });
+    if (!r || r.error) { $('#err').textContent = (r && r.error) || 'Could not save the category'; return; }
+    categories = r.categories;
+    fillCategories(name);
+    $('#err').textContent = '';
+  });
 }
 
 async function init() {
@@ -63,6 +105,7 @@ async function init() {
   $('#host').title = pending.url;
   $('#name').value = p.filename || pending.filename || decodeURIComponent((pending.url.split('?')[0].split('/').pop()) || '') || '';
   $('#dir').value = p.downloadDir || '';
+  await setupCategories(p);
 
   if (pending.oneTime) {
     $('#size').textContent = 'shown when it starts';

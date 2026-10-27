@@ -393,6 +393,29 @@ async function test(name, fn) {
     return `waited through 25 s of silence; saved as ${done.filename}`;
   });
 
+  await test('categories: "Games" saves to its own folder, also picked by file type', async () => {
+    const gamesDir = path.join(ROOT, 'my games');
+    config.update({ categories: [{ name: 'Games', dir: gamesDir, exts: '.ISO, rar' }, { name: 'bad', dir: 'relative\\path' }] });
+    const cats = config.get('categories');
+    if (cats.length !== 1 || cats[0].exts !== 'iso rar') throw new Error('categories not cleaned: ' + JSON.stringify(cats));
+    // chosen in the window
+    const a = await dl(`${base()}/file/small.bin?t=cat1`, 'small', { category: 'Games', dir: null });
+    if (path.dirname(a.savePath) !== gamesDir || a.userCategory !== 'Games') throw new Error('saved to ' + a.savePath);
+    // picked by file type, nothing chosen
+    fs.copyFileSync(path.join(SRC, 'small.bin'), path.join(SRC, 'setup.iso'));
+    hashes.iso = hashes.small;
+    const b = await dl(`${base()}/file/setup.iso`, 'iso', { dir: null });
+    if (path.dirname(b.savePath) !== gamesDir) throw new Error('.iso not routed to Games: ' + b.savePath);
+    // "None" overrides the file-type match
+    const c = await dl(`${base()}/file/setup.iso?t=none`, 'iso', { category: '', dir: null });
+    if (path.dirname(c.savePath) === gamesDir) throw new Error('"None" still used Games');
+    let threw = false;
+    try { m.add({ url: `${base()}/file/small.bin?t=x`, category: 'Nope' }); } catch { threw = true; }
+    if (!threw) throw new Error('unknown category accepted');
+    config.update({ categories: [] });
+    return 'chosen, by file type, and "None" all correct';
+  });
+
   await test('PC sleeps / app freezes: reconnects right after', async () => {
     const it = m.add({ url: `${base()}/file/medium.bin?rate=${2 << 20}&t=slp`, dir: OUT, connections: 4 });
     await waitUntil(() => doneBytes(it.id) > 4 << 20, 30000, 'some progress');

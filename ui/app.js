@@ -98,6 +98,7 @@
       for (const it of d.items) state.items.set(it.id, it);
       state.settings = d.settings;
       showExtBanner();
+      renderUserCats();
       $('#verLabel').textContent = 'Bolt v' + d.version + ' · Made by Arnav';
       $('#aboutVer').textContent = 'Version ' + d.version;
       cs.className = 'conn ok'; cs.lastChild.textContent = 'Running';
@@ -124,7 +125,7 @@
         updateRow(s.id);
       }
     });
-    es.addEventListener('settings', (e) => { state.settings = JSON.parse(e.data); showExtBanner(); });
+    es.addEventListener('settings', (e) => { state.settings = JSON.parse(e.data); showExtBanner(); renderUserCats(); });
     es.addEventListener('completed', (e) => {
       const it = JSON.parse(e.data);
       toast('Finished: ' + it.filename, 'ok');
@@ -149,6 +150,7 @@
     if (f === 'completed') return it.status === 'completed';
     if (f === 'unfinished') return it.status !== 'completed';
     if (f.startsWith('cat:')) return catOf(it) === f.slice(4);
+    if (f.startsWith('ucat:')) return it.userCategory === f.slice(5);
     return true;
   }
 
@@ -161,9 +163,69 @@
       if (it.status === 'completed') c.completed++; else c.unfinished++;
       const k = 'cat:' + catOf(it);
       c[k] = (c[k] || 0) + 1;
+      if (it.userCategory) c['ucat:' + it.userCategory] = (c['ucat:' + it.userCategory] || 0) + 1;
     }
     for (const b of $$('[data-count]')) b.textContent = c[b.dataset.count] || 0;
   }
+
+  // ---- your own categories ("Games" -> D:\games)
+  const cats = () => state.settings.categories || [];
+  function renderUserCats() {
+    const box = $('#userCats');
+    box.textContent = '';
+    for (const c of cats()) {
+      const b = document.createElement('button');
+      b.className = 'nav' + (state.filter === 'ucat:' + c.name ? ' active' : '');
+      b.dataset.filter = 'ucat:' + c.name;
+      b.title = c.dir;
+      b.innerHTML = '<span></span><b></b>';
+      b.firstChild.textContent = c.name;
+      b.lastChild.dataset.count = 'ucat:' + c.name;
+      box.appendChild(b);
+    }
+    if (!cats().length) box.innerHTML = '<div class="hint" style="padding:2px 10px 6px">e.g. Games → D:\\games</div>';
+    const sel = $('#addCat');
+    const keep = sel.value;
+    sel.length = 1;
+    for (const c of cats()) sel.add(new Option(c.name, c.name));
+    sel.value = cats().some((c) => c.name === keep) ? keep : '';
+    renderCounts();
+  }
+  $('#userCats').addEventListener('click', (e) => {
+    const b = e.target.closest('.nav');
+    if (!b) return;
+    $$('.nav').forEach((x) => x.classList.toggle('active', x === b));
+    state.filter = b.dataset.filter;
+    fullRender();
+  });
+  $('#addCat').addEventListener('change', () => {
+    const c = cats().find((x) => x.name === $('#addCat').value);
+    $('#addDir').value = c ? c.dir : '';
+  });
+
+  function catRow(c = { name: '', dir: '', exts: '' }) {
+    const row = document.createElement('div');
+    row.className = 'catrow';
+    row.innerHTML = `<input class="cn" placeholder="Name (e.g. Games)" spellcheck="false">
+      <input class="cd" placeholder="Folder, e.g. D:\\games" spellcheck="false">
+      <button type="button" class="btn cb">Browse…</button>
+      <input class="ce" placeholder="Types: iso rar" spellcheck="false" title="Optional: file types that go here by themselves">
+      <button type="button" class="btn icon cx" title="Remove"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+    row.querySelector('.cn').value = c.name;
+    row.querySelector('.cd').value = c.dir;
+    row.querySelector('.ce').value = c.exts || '';
+    row.querySelector('.cb').addEventListener('click', act(async () => {
+      const r = await api('/api/actions/pick-folder', { initial: row.querySelector('.cd').value || state.settings.downloadDir });
+      if (r.path) row.querySelector('.cd').value = r.path;
+    }));
+    row.querySelector('.cx').addEventListener('click', () => row.remove());
+    return row;
+  }
+  $('#catAdd').addEventListener('click', () => { const r = catRow(); $('#catRows').appendChild(r); r.querySelector('.cn').focus(); });
+  $('#btnManageCats').addEventListener('click', () => { openSettings(); if (!cats().length) $('#catAdd').click(); });
+  const readCatRows = () => [...$$('#catRows .catrow')].map((r) => ({
+    name: r.querySelector('.cn').value.trim(), dir: r.querySelector('.cd').value.trim(), exts: r.querySelector('.ce').value.trim(),
+  })).filter((c) => c.name || c.dir);
 
   function fullRender() {
     const list = $('#list');
@@ -453,6 +515,7 @@ ${it.error}` : subText;
         cookies: $('#addCookie').value.trim() || null,
         start: !$('#addLater').checked,
         type: $('#addYtdlp').checked ? 'ytdlp' : undefined,
+        category: $('#addCat').value || '',
       };
       const r = await api('/api/downloads', body);
       $('#dlgAdd').close();
@@ -483,6 +546,8 @@ ${it.error}` : subText;
     $('#setPerHost').value = s.maxConnectionsPerHost;
     $('#setRemux').checked = !!s.remuxHlsToMp4;
     $('#setNotify').checked = !!s.notify;
+    $('#catRows').textContent = '';
+    for (const c of cats()) $('#catRows').appendChild(catRow(c));
     $('#dlgSettings').showModal();
   }
   $('#btnLog').addEventListener('click', act(() => api('/api/actions/open-log', {})));
@@ -495,8 +560,12 @@ ${it.error}` : subText;
   $('#formSettings').addEventListener('submit', async (e) => {
     if (e.submitter && e.submitter.value === 'cancel') return;
     e.preventDefault();
+    const catList = readCatRows();
+    const bad = catList.find((c) => !c.name || !/^([a-zA-Z]:\\|\\\\)/.test(c.dir));
+    if (bad) { toast(`Category "${bad.name || '(no name)'}" needs a name and a full folder path like D:\\games`, 'bad'); return; }
     try {
       state.settings = await api('/api/settings', {
+        categories: catList,
         downloadDir: $('#setDir').value,
         sortIntoCategories: $('#setSort').checked,
         connections: Number($('#setSpeed').value),
@@ -511,6 +580,7 @@ ${it.error}` : subText;
         notify: $('#setNotify').checked,
       });
       if (state.settings.notify) askNotify();
+      renderUserCats();
       $('#dlgSettings').close();
       toast('Settings saved', 'ok');
     } catch (er) { toast(er.message, 'bad'); }
