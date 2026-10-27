@@ -58,6 +58,7 @@ function fillCategories(selected) {
   const sel = $('#category');
   sel.length = 1;   // keep "None"
   for (const c of categories) sel.add(new Option(`${c.name}  —  ${c.dir}`, c.name));
+  sel.add(new Option('+ New category…', '__new'));
   sel.value = categories.some((c) => c.name === selected) ? selected : '';
 }
 
@@ -77,18 +78,32 @@ async function setupCategories(p) {
   }
   fillCategories(p.suggestedCategory);
   if (p.suggestedCategory) applyCategory();
-  $('#category').addEventListener('change', applyCategory);
-  $('#saveCat').addEventListener('click', async () => {
+  $('#category').addEventListener('change', () => {
+    if ($('#category').value === '__new') { $('#category').value = ''; showNewCat(); return; }
+    applyCategory();
+  });
+  // inline "New category" (no pop-up questions: browsers may block those in this window)
+  const showNewCat = () => { $('#newCat').hidden = false; $('#newCatName').focus(); };
+  $('#saveCat').addEventListener('click', showNewCat);
+  $('#newCatCancel').addEventListener('click', () => { $('#newCat').hidden = true; });
+  const saveNewCat = async () => {
+    const name = $('#newCatName').value.trim();
     const dir = $('#dir').value.trim();
-    if (!dir) { $('#err').textContent = 'Choose a folder first (Browse…).'; return; }
-    const name = (prompt(`Name for this category?\nFiles you put in it go to:\n${dir}`, '') || '').trim();
-    if (!name) return;
+    if (!name) { $('#err').textContent = 'Type a name for the category, e.g. Games.'; $('#newCatName').focus(); return; }
+    if (!dir) { $('#err').textContent = 'Choose its folder with Browse… first.'; return; }
+    $('#newCatSave').disabled = true;
     const r = await send({ cmd: 'save-category', name, dir });
-    if (!r || r.error) { $('#err').textContent = (r && r.error) || 'Could not save the category'; return; }
+    $('#newCatSave').disabled = false;
+    if (!r || r.error) { $('#err').textContent = (r && r.error) || 'Could not save the category (is Bolt running?)'; return; }
     categories = r.categories;
     fillCategories(name);
+    $('#newCat').hidden = true;
+    $('#newCatName').value = '';
     $('#err').textContent = '';
-  });
+    $('#speedNote').textContent = `Category "${name}" saved. Next time just pick it.`;
+  };
+  $('#newCatSave').addEventListener('click', saveNewCat);
+  $('#newCatName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveNewCat(); } });
 }
 
 async function init() {

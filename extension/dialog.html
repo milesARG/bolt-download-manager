@@ -39,7 +39,16 @@
     <label class="grow">Category
       <select id="category"><option value="">None (default folder)</option></select>
     </label>
-    <button type="button" class="btn" id="saveCat" title="Save the folder below as a category, so next time it is one click">Save folder as category…</button>
+    <button type="button" class="btn" id="saveCat" title="Make a category from a folder, so next time it is one click">New category…</button>
+  </div>
+  <div class="newcat" id="newCat" hidden>
+    <b>New category</b>
+    <span class="muted">Pick its folder in "Save to" below (Browse…), name it, then Save.</span>
+    <div class="pick">
+      <input id="newCatName" placeholder="Name, e.g. Games" maxlength="40" spellcheck="false">
+      <button type="button" class="btn primary" id="newCatSave">Save</button>
+      <button type="button" class="btn" id="newCatCancel">Cancel</button>
+    </div>
   </div>
 
   <label>Save to

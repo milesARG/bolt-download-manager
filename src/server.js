@@ -260,10 +260,13 @@ function createServer(manager, config, { onQuit } = {}) {
       if (p === '/api/categories') {
         // add or update one category (from the download window's "New category…")
         const name = String(body.name || '').trim();
+        const dir = String(body.dir || '').trim();
+        if (!name) return send(res, 400, { error: 'Give the category a name, e.g. Games.' });
+        if (!dir || !path.isAbsolute(dir)) return send(res, 400, { error: 'Choose a folder for it (a full path such as D:\\games).' });
         const list = (config.get('categories') || []).filter((c) => c.name.toLowerCase() !== name.toLowerCase());
-        const before = list.length;
-        config.update({ categories: [...list, { name, dir: body.dir, exts: body.exts || '' }] });
-        if (config.get('categories').length === before) return send(res, 400, { error: 'A category needs a name and a full folder path' });
+        config.update({ categories: [...list, { name, dir, exts: body.exts || '' }] });
+        try { fs.mkdirSync(path.normalize(dir), { recursive: true }); } catch { /* created when the first file arrives */ }
+        log.info(`category "${name}" -> ${path.normalize(dir)}`);
         broadcast('settings', settings());
         return send(res, 200, { categories: config.get('categories') });
       }

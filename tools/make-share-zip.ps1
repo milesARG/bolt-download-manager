@@ -29,8 +29,9 @@ BOLT DOWNLOAD MANAGER $v  -  by Arnav
    Updating from an older Bolt? Click the reload button on Bolt in that page.
 
 3) CATEGORIES (optional)
-   In Bolt: Settings -> Categories -> "+ Add category", e.g. Games -> D:\games.
-   Then pick "Games" in the download window and the file goes straight there.
+   In Bolt's window click "+ New category" (left side), type a name like Games,
+   click "Choose folder..." and Save. Or click "New category..." in the download window.
+   Then pick "Games" when downloading and the file goes straight to its folder.
 
 To uninstall: Settings -> Apps -> Bolt Download Manager -> Uninstall.
 "@ | Set-Content "$s\READ ME FIRST.txt" -Encoding UTF8

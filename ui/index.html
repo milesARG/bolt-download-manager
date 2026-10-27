@@ -116,6 +116,26 @@
   </form>
 </dialog>
 
+<!-- New category -->
+<dialog id="dlgCat">
+  <form method="dialog" id="formCat">
+    <h3>New category</h3>
+    <p class="muted">Files you put in this category are saved to its folder.</p>
+    <label>Name
+      <input id="catName" placeholder="e.g. Games" maxlength="40" spellcheck="false" required></label>
+    <label>Folder
+      <div class="pick"><input id="catDir" placeholder="Click Choose folder…" spellcheck="false"><button type="button" class="btn primary" id="catBrowse">Choose folder…</button></div></label>
+    <details><summary>Pick it automatically for some file types (optional)</summary>
+      <label>File types<input id="catExts" placeholder="e.g. iso rar 7z" spellcheck="false"></label>
+    </details>
+    <p class="err" id="catErr"></p>
+    <div class="actions"><div class="spacer"></div>
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="ok">Save category</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Settings -->
 <dialog id="dlgSettings">
   <form method="dialog" id="formSettings">

@@ -183,11 +183,15 @@
       b.lastChild.dataset.count = 'ucat:' + c.name;
       box.appendChild(b);
     }
-    if (!cats().length) box.innerHTML = '<div class="hint" style="padding:2px 10px 6px">e.g. Games → D:\\games</div>';
+    if (!cats().length) {
+      box.innerHTML = '<button class="nav newcat" type="button"><span>+ New category</span><b>e.g. Games</b></button>';
+      box.firstChild.addEventListener('click', (e) => { e.stopPropagation(); openNewCategory(); });
+    }
     const sel = $('#addCat');
     const keep = sel.value;
     sel.length = 1;
     for (const c of cats()) sel.add(new Option(c.name, c.name));
+    sel.add(new Option('+ New category…', '__new'));
     sel.value = cats().some((c) => c.name === keep) ? keep : '';
     renderCounts();
   }
@@ -199,6 +203,7 @@
     fullRender();
   });
   $('#addCat').addEventListener('change', () => {
+    if ($('#addCat').value === '__new') return;
     const c = cats().find((x) => x.name === $('#addCat').value);
     $('#addDir').value = c ? c.dir : '';
   });
@@ -222,7 +227,49 @@
     return row;
   }
   $('#catAdd').addEventListener('click', () => { const r = catRow(); $('#catRows').appendChild(r); r.querySelector('.cn').focus(); });
-  $('#btnManageCats').addEventListener('click', () => { openSettings(); if (!cats().length) $('#catAdd').click(); });
+
+  // "New category": name -> Choose folder -> Save. Saved at once, no other Save needed.
+  let afterCat = null;
+  function openNewCategory(then) {
+    afterCat = then || null;
+    $('#formCat').reset();
+    $('#catErr').textContent = '';
+    $('#dlgCat').showModal();
+    $('#catName').focus();
+  }
+  $('#catBrowse').addEventListener('click', act(async () => {
+    $('#catBrowse').disabled = true;
+    try {
+      const r = await api('/api/actions/pick-folder', { initial: $('#catDir').value || state.settings.downloadDir });
+      if (r.path) {
+        $('#catDir').value = r.path;
+        if (!$('#catName').value.trim()) $('#catName').value = r.path.split(/[\\/]/).filter(Boolean).pop() || '';
+      }
+    } finally { $('#catBrowse').disabled = false; }
+  }));
+  $('#formCat').addEventListener('submit', async (e) => {
+    if (e.submitter && e.submitter.value === 'cancel') return;
+    e.preventDefault();
+    const name = $('#catName').value.trim();
+    const dir = $('#catDir').value.trim();
+    if (!name) { $('#catErr').textContent = 'Give it a name, e.g. Games.'; return; }
+    if (!dir) { $('#catErr').textContent = 'Click "Choose folder…" to pick where these files go.'; return; }
+    try {
+      const r = await api('/api/categories', { name, dir, exts: $('#catExts').value });
+      state.settings.categories = r.categories;
+      renderUserCats();
+      $('#dlgCat').close();
+      toast(`Category "${name}" saved → ${dir}`, 'ok');
+      if (afterCat) afterCat(name);
+    } catch (er) { $('#catErr').textContent = er.message; }
+  });
+  $('#btnManageCats').addEventListener('click', () => openNewCategory());
+  // "+ New category…" at the end of Add URL's category menu
+  $('#addCat').addEventListener('change', () => {
+    if ($('#addCat').value !== '__new') return;
+    $('#addCat').value = '';
+    openNewCategory((name) => { $('#addCat').value = name; $('#addCat').dispatchEvent(new Event('change')); });
+  });
   const readCatRows = () => [...$$('#catRows .catrow')].map((r) => ({
     name: r.querySelector('.cn').value.trim(), dir: r.querySelector('.cd').value.trim(), exts: r.querySelector('.ce').value.trim(),
   })).filter((c) => c.name || c.dir);
@@ -561,8 +608,8 @@ ${it.error}` : subText;
     if (e.submitter && e.submitter.value === 'cancel') return;
     e.preventDefault();
     const catList = readCatRows();
-    const bad = catList.find((c) => !c.name || !/^([a-zA-Z]:\\|\\\\)/.test(c.dir));
-    if (bad) { toast(`Category "${bad.name || '(no name)'}" needs a name and a full folder path like D:\\games`, 'bad'); return; }
+    const bad = catList.find((c) => !c.name || !c.dir);
+    if (bad) { toast(`Category "${bad.name || '(no name)'}" needs a name and a folder (use Browse…)`, 'bad'); return; }
     try {
       state.settings = await api('/api/settings', {
         categories: catList,
@@ -580,6 +627,8 @@ ${it.error}` : subText;
         notify: $('#setNotify').checked,
       });
       if (state.settings.notify) askNotify();
+      const kept = (state.settings.categories || []).length;
+      if (kept < catList.length) toast(`${catList.length - kept} category(ies) not saved: each needs a name and a full folder (use Browse…)`, 'bad');
       renderUserCats();
       $('#dlgSettings').close();
       toast('Settings saved', 'ok');
