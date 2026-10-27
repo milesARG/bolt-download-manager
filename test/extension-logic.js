@@ -43,6 +43,8 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   const store = { enabled: true, port, minSizeKB: 0, autoLaunch: false, skipExts: 'jpg', askEveryTime: false, catchPanelLinks: true };
   const session = new Map();
   const dls = new Map();   // the browser's own download list
+  const suggested = new Set();
+  const cancelledBeforePrompt = new Set();
   let dnrRules = [];
   let windowSeq = 100;
   const chrome = {
@@ -56,7 +58,9 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
       },
     },
     downloads: {
-      onCreated: on('created'), onChanged: on('dlChanged'), pause: rec('pause'), resume: rec('resume'), cancel: rec('cancel'), erase: rec('erase'), download: rec('download'),
+      onDeterminingFilename: on('determining'), onChanged: on('dlChanged'), pause: rec('pause'), resume: rec('resume'), erase: rec('erase'), download: rec('download'),
+      // the browser shows its own "Save as" only after suggest(): cancelling first means it never appears
+      cancel: async (id) => { calls.push(['cancel']); if (!suggested.has(id)) cancelledBeforePrompt.add(id); },
       search: async ({ id }) => (dls.has(id) ? [{ ...dls.get(id) }] : []),
     },
     windows: { create: async (o) => { calls.push(['window', o.url]); return { id: ++windowSeq }; }, onRemoved: on('winRemoved') },
@@ -73,7 +77,13 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   vm.runInNewContext(code, { chrome, fetch, AbortSignal, URL, navigator: { userAgent: 'TestUA' }, setTimeout, setInterval, clearInterval, console });
   const message = (msg) => new Promise((r) => listeners.message(msg, {}, r));
   // a new browser download: put it in the fake list, then fire the event
-  const created = (d) => { dls.set(d.id, { state: 'in_progress', bytesReceived: 0, paused: false, startTime: new Date().toISOString(), ...d }); return listeners.created(dls.get(d.id)); };
+  const created = async (d) => {
+    dls.set(d.id, { state: 'in_progress', bytesReceived: 0, paused: false, startTime: new Date().toISOString(), ...d });
+    const async = listeners.determining(dls.get(d.id), () => suggested.add(d.id));
+    if (async !== true) throw new Error('listener must answer asynchronously');
+    for (let i = 0; i < 200 && !suggested.has(d.id); i++) await sleep(25);
+    await sleep(400);   // let what follows (window, Bolt) finish
+  };
   await sleep(50);   // let the start-up rule registration finish
   const names = () => calls.map((c) => c[0]).join();
   const pendingKey = () => [...session.keys()].find((k) => k.startsWith('pending:')).slice(8);
@@ -82,7 +92,8 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   // 1) no window: checked, handed to Bolt, removed from the browser
   calls.length = 0;
   await created({ id: 1, url: f('t=1'), finalUrl: f('t=1'), filename: '', referrer: 'http://ref.test/', mime: 'application/gzip', state: 'in_progress', totalBytes: -1 });
-  check('download handed to Bolt after its check', names() === 'pause,cancel,erase', names());
+  check('download handed to Bolt after its check', names() === 'cancel,erase', names());
+  check('browser\'s own "Save as" never shown (cancelled before it asks)', cancelledBeforePrompt.has(1) && suggested.has(1));
   let it = (await list()).find((i) => i.url === f('t=1'));
   check('Bolt has it, with referrer', !!it && it.referrer === 'http://ref.test/' && it.source === 'browser');
 
@@ -90,7 +101,7 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   store.askEveryTime = true;
   calls.length = 0;
   await created({ id: 2, url: f('t=2'), filename: 'backup.tar.gz', mime: 'application/gzip', state: 'in_progress', totalBytes: -1 });
-  check('download window opened (browser download on hold)', names() === 'pause,window' && /dialog\.html\?k=/.test(calls[1][1]), names());
+  check('Bolt\'s download window opened instead of the browser\'s', names() === 'cancel,erase,window' && /dialog\.html\?k=/.test(calls[2][1]) && cancelledBeforePrompt.has(2), names());
   let k = pendingKey();
   let p = (await message({ cmd: 'pending', key: k })).pending;
   check('window gets size and file name from the check', p.probe.ok && p.probe.size === 6 << 20 && p.probe.filename === 'backup.tar.gz', JSON.stringify(p.probe).slice(0, 120));
@@ -98,27 +109,27 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   let r = await message({ cmd: 'dialog', key: k, action: 'start', filename: 'my-backup.tar.gz', dir: myDir, connections: 32 });
   it = (await list()).find((i) => i.url === f('t=2'));
   check('Start: Bolt got folder, name and 32 connections', r.ok && it && it.dir === myDir && it.filename === 'my-backup.tar.gz' && it.chosenConnections === 32, JSON.stringify(it && { dir: it.dir, filename: it.filename, chosen: it.chosenConnections }));
-  check('Start: browser copy cancelled', names().endsWith('cancel,erase'), names());
+  check('Start: browser copy already gone, no browser prompt', names() === 'cancel,erase,window' && cancelledBeforePrompt.has(2), names());
 
   // 3) "Use browser" gives the download back
   calls.length = 0;
   await created({ id: 3, url: f('t=3'), mime: 'application/gzip', state: 'in_progress', totalBytes: -1 });
   r = await message({ cmd: 'dialog', key: pendingKey(), action: 'browser' });
-  check('"Use browser" resumes the browser download', r.ok && names() === 'pause,window,resume', names());
+  check('"Use browser" hands it to the browser (no save prompt)', r.ok && names() === 'cancel,erase,window,download' && calls[3][1].saveAs === false, names());
 
   // 4) closing the window = cancel
   calls.length = 0;
   await created({ id: 4, url: f('t=4'), mime: 'application/gzip', state: 'in_progress', totalBytes: -1 });
   k = pendingKey();
   await listeners.winRemoved(windowSeq);
-  check('closing the window cancels', names() === 'pause,window,cancel,erase' && !session.has('pending:' + k), names());
+  check('closing the window cancels', names() === 'cancel,erase,window' && !session.has('pending:' + k), names());
 
   // 5) a link Bolt can't fetch (one-time link the browser already used): browser keeps it, no window
   calls.length = 0;
   const used = f('once=1&t=5');
   await fetch(used).then((x) => x.arrayBuffer());
   await created({ id: 5, url: used, mime: 'application/gzip', state: 'in_progress', totalBytes: -1 });
-  check('link Bolt cannot fetch: browser copy never paused', names() === 'notify', names());
+  check('link Bolt cannot fetch: the browser just carries on', names() === 'notify' && suggested.has(5), names());
   let b5 = (await list()).find((i) => i.type === 'browser' && i.browserId === '5');
   check('...and it shows in Bolt as a browser download', !!b5 && /can't fetch/.test(b5.note || ''), JSON.stringify(b5 && b5.note));
 
@@ -126,7 +137,7 @@ const check = (name, ok, extra = '') => { console.log(`  ${ok ? 'PASS' : 'FAIL'}
   store.port = 1;
   calls.length = 0;
   await created({ id: 6, url: f('t=6'), state: 'in_progress', totalBytes: -1 });
-  check('Bolt down -> browser keeps it, untouched', !/pause|resume|cancel/.test(names()), names());
+  check('Bolt down -> browser keeps it, untouched', !/pause|resume|cancel/.test(names()) && suggested.has(6), names());
   store.port = port;
 
   // 7) skip list / blob: / our own browser fallback

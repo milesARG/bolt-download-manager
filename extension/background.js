@@ -113,7 +113,7 @@ async function openDialog(p) {
 /** Hand the browser's own download back (resume) or drop it (Bolt took it / cancelled). */
 async function settleBrowserDownload(p, keepInBrowser) {
   if (p.downloadId == null) {
-    if (keepInBrowser) await chrome.downloads.download({ url: p.url }).catch(() => {});
+    if (keepInBrowser) await chrome.downloads.download({ url: p.url, saveAs: false }).catch(() => {});
     return;
   }
   if (keepInBrowser) await chrome.downloads.resume(p.downloadId).catch(() => {});
@@ -173,11 +173,11 @@ async function offerToBolt(p) {
   const s = await settings();
   if (!(await ensureBolt(s))) {
     // the browser's copy was never paused, so it just carries on
-    if (p.downloadId == null) await chrome.downloads.download({ url: p.url }).catch(() => {});
+    if (p.downloadId == null) await chrome.downloads.download({ url: p.url, saveAs: false }).catch(() => {});
     warnNotRunning();
     return;
   }
-  if (!p.oneTime) {
+  if (!p.oneTime && !p.probe) {
     p.probe = await probeWithBolt({ url: p.url, referrer: p.referrer, mime: p.mime, filename: p.filename });
     if (!p.probe.ok && p.downloadId != null) {
       await leaveToBrowser(p.downloadId, `Bolt can't fetch this link itself (${p.probe.error})`);
@@ -221,28 +221,48 @@ function inPageSource(url) {
   return null;
 }
 
-chrome.downloads.onCreated.addListener(async (item) => {
-  const s = await settings();
-  if (!s.enabled) return;
-  if (item.byExtensionId === chrome.runtime.id) return;   // "download with browser" from our menu
-  if (item.state && item.state !== 'in_progress') return;
-  const url = item.finalUrl || item.url;
-  const inPage = inPageSource(url);
-  if (inPage) return leaveToBrowser(item.id, inPage, { quiet: true });
-  if (s.minSizeKB && item.totalBytes > 0 && item.totalBytes < s.minSizeKB * 1024) return leaveToBrowser(item.id, 'Smaller than your "only take files bigger than" setting', { quiet: true });
-  const skip = s.skipExts.split(/[\s,]+/).map((e) => e.replace(/^\./, '').toLowerCase()).filter(Boolean);
-  const name = basename(item.filename) || basename(new URL(url).pathname);
-  const ext = (name || '').split('.').pop().toLowerCase();
-  if (skip.includes(ext)) return leaveToBrowser(item.id, `You chose to leave .${ext} files to the browser`, { quiet: true });
-
-  // The browser keeps downloading while Bolt checks the link (a second or so).
-  try {
-    await offerToBolt({ downloadId: item.id, url, filename: basename(item.filename), referrer: item.referrer || null, mime: item.mime || null });
-  } catch (e) {
-    chrome.downloads.resume(item.id).catch(() => {});
-    leaveToBrowser(item.id, e.message);
-  }
+/*
+ * The browser asks extensions for a file name BEFORE it shows its own
+ * "Save as" window, and waits for the answer. Bolt checks the link during
+ * that wait: if Bolt can take it, the browser's copy is cancelled before any
+ * browser window appears; if not, the browser just carries on as usual.
+ */
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  takeOver(item, suggest);
+  return true;   // we answer (suggest) ourselves, asynchronously
 });
+
+async function takeOver(item, suggest) {
+  let answered = false;
+  const letBrowser = () => { if (!answered) { answered = true; try { suggest(); } catch { /* download already gone */ } } };
+  try {
+    const s = await settings();
+    if (!s.enabled || item.byExtensionId === chrome.runtime.id) return letBrowser();   // our own "download with browser"
+    const url = item.finalUrl || item.url;
+    const inPage = inPageSource(url);
+    if (inPage) { letBrowser(); return leaveToBrowser(item.id, inPage, { quiet: true }); }
+    if (s.minSizeKB && item.totalBytes > 0 && item.totalBytes < s.minSizeKB * 1024) { letBrowser(); return leaveToBrowser(item.id, 'Smaller than your "only take files bigger than" setting', { quiet: true }); }
+    const skip = s.skipExts.split(/[\s,]+/).map((e) => e.replace(/^\./, '').toLowerCase()).filter(Boolean);
+    const name = basename(item.filename) || basename(new URL(url).pathname);
+    const ext = (name || '').split('.').pop().toLowerCase();
+    if (skip.includes(ext)) { letBrowser(); return leaveToBrowser(item.id, `You chose to leave .${ext} files to the browser`, { quiet: true }); }
+
+    if (!(await ensureBolt(s))) { letBrowser(); warnNotRunning(); return; }
+    const p = { downloadId: null, fromBrowser: true, url, filename: basename(item.filename), referrer: item.referrer || null, mime: item.mime || null };
+    p.probe = await probeWithBolt({ url, referrer: p.referrer, mime: p.mime, filename: p.filename });
+    if (!p.probe.ok) {
+      letBrowser();
+      return leaveToBrowser(item.id, `Bolt can't fetch this link itself (${p.probe.error})`);
+    }
+    // Bolt has it: drop the browser's copy before it asks where to save.
+    await chrome.downloads.cancel(item.id).catch(() => {});
+    await chrome.downloads.erase({ id: item.id }).catch(() => {});
+    letBrowser();
+    await offerToBolt(p);
+  } catch (e) {
+    letBrowser();
+  }
+}
 
 // ------------------------------------------------------------ downloads the browser keeps
 // Shown in Bolt's list too, with live progress, so every download is in one place.
@@ -315,7 +335,7 @@ async function handleCaught(url) {
   const s = await settings();
   if (!(await ensureBolt(s))) {
     // Let the browser download it: the token hasn't been used yet, so it still works.
-    await chrome.downloads.download({ url }).catch(() => {});
+    await chrome.downloads.download({ url, saveAs: false }).catch(() => {});
     warnNotRunning();
     return { ok: true, browser: true };
   }

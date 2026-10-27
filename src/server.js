@@ -27,19 +27,64 @@ function openPath(p, select = false) {
   }
 }
 
+// The modern Explorer-style folder picker (IFileOpenDialog), not the small old
+// tree dialog. It opens over an always-on-top owner window so it can't end
+// up behind other apps (Bolt runs in the background, and Windows normally
+// keeps background programs from taking the front).
+const PICKER_PS = String.raw`
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+[ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")] class FileOpenDialogCom {}
+[ComImport, Guid("42f85136-db7e-439c-85f1-e4075d135fc8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IFileDialog {
+  [PreserveSig] int Show(IntPtr parent);
+  void SetFileTypes(uint c, IntPtr f); void SetFileTypeIndex(uint i); void GetFileTypeIndex(out uint i);
+  void Advise(IntPtr p, out uint c); void Unadvise(uint c);
+  void SetOptions(uint fos); void GetOptions(out uint fos);
+  void SetDefaultFolder(IShellItem si); void SetFolder(IShellItem si);
+  void GetFolder(out IShellItem si); void GetCurrentSelection(out IShellItem si);
+  void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string n); void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string n);
+  void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string t); void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string t);
+  void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string l); void GetResult(out IShellItem si);
+}
+[ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IShellItem {
+  void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv); void GetParent(out IShellItem si);
+  void GetDisplayName(uint sigdn, [MarshalAs(UnmanagedType.LPWStr)] out string name);
+}
+public static class BoltPicker {
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+  static extern void SHCreateItemFromParsingName(string path, IntPtr pbc, ref Guid riid, out IShellItem item);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  public static string Pick(string initial, IntPtr owner) {
+    var d = (IFileDialog)new FileOpenDialogCom();
+    d.SetOptions(0x20 | 0x40 | 0x800);   // pick folders, file system only, must exist
+    d.SetTitle("Choose where Bolt saves downloads");
+    d.SetOkButtonLabel("Use this folder");
+    if (!string.IsNullOrEmpty(initial) && System.IO.Directory.Exists(initial)) {
+      try { var g = typeof(IShellItem).GUID; IShellItem si; SHCreateItemFromParsingName(initial, IntPtr.Zero, ref g, out si); d.SetFolder(si); } catch { }
+    }
+    if (d.Show(owner) != 0) return null;
+    IShellItem r; d.GetResult(out r); string p; r.GetDisplayName(0x80058000, out p); return p;
+  }
+}
+'@
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
+$owner.StartPosition = 'CenterScreen'; $owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.Show(); $owner.Activate(); [BoltPicker]::SetForegroundWindow($owner.Handle) | Out-Null
+$path = [BoltPicker]::Pick($env:BOLT_INITIAL, $owner.Handle)
+$owner.Close()
+if ($path) { [Console]::Out.Write($path) }
+`;
+
 function pickFolder(initial) {
   return new Promise((resolve) => {
     if (process.platform !== 'win32') return resolve(null);
-    const ps = [
-      'Add-Type -AssemblyName System.Windows.Forms;',
-      '$f = New-Object System.Windows.Forms.FolderBrowserDialog;',
-      '$f.Description = "Choose where Bolt saves downloads";',
-      '$f.SelectedPath = $env:BOLT_INITIAL;',
-      '$f.ShowNewFolderButton = $true;',
-      '$w = New-Object System.Windows.Forms.Form; $w.TopMost = $true;',
-      'if ($f.ShowDialog($w) -eq "OK") { [Console]::Out.Write($f.SelectedPath) }',
-    ].join(' ');
-    const p = spawn('powershell.exe', ['-NoProfile', '-STA', '-Command', ps], { env: { ...process.env, BOLT_INITIAL: initial || '' }, windowsHide: true });
+    const script = path.join(require('os').tmpdir(), 'bolt-pick-folder.ps1');
+    try { fs.writeFileSync(script, '﻿' + PICKER_PS); } catch { return resolve(null); }
+    const p = spawn('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', script], { env: { ...process.env, BOLT_INITIAL: initial || '' }, windowsHide: true });
     let out = '';
     p.stdout.on('data', (d) => { out += d; });
     p.on('exit', () => resolve(out.trim() || null));
